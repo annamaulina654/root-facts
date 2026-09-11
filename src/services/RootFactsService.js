@@ -11,7 +11,7 @@ export class RootFactsService {
     this.isModelLoaded = false;
     this.isGenerating = false;
     // Gunakan Xenova/flan-t5-small sebagai standar text2text ringan di browser
-    this.modelName = 'Xenova/flan-t5-small'; 
+    this.modelName = 'Xenova/flan-t5-small';
     this.currentBackend = null;
     this.currentTone = TONE_CONFIG?.defaultTone || 'normal';
 
@@ -69,22 +69,22 @@ export class RootFactsService {
   // TODO [Basic] Lakukan prediksi pada elemen gambar yang diberikan dan kembalikan hasilnya
   // TODO [Skilled] Konfigurasikan parameter generasi berdasarkan kebutuhan
   // TODO [Advance] Implementasikan parameter tone untuk mengatur nada fakta yang dihasilkan
-async generateFacts(vegetableName) {
+  async generateFacts(vegetableName) {
     if (!this.isModelLoaded || this.isGenerating) {
       throw new Error('Model belum siap atau sedang sibuk.');
     }
 
     try {
       this.isGenerating = true;
-      await new Promise(resolve => setTimeout(resolve, this.config.generationDelay || 500));
+      await new Promise((resolve) => setTimeout(resolve, this.config.generationDelay || 500));
 
       // --- ADVANCED: FITUR PERSONA DINAMIS ---
       // Menyesuaikan instruksi prompt berdasarkan currentTone yang dipilih pengguna
-      let styleInstruction = "interesting and simple";
+      let styleInstruction = 'interesting and simple';
       if (this.currentTone === 'lucu' || this.currentTone === 'funny') {
-        styleInstruction = "funny and humorous";
+        styleInstruction = 'funny and humorous';
       } else if (this.currentTone === 'sejarah' || this.currentTone === 'historical') {
-        styleInstruction = "historical and informative";
+        styleInstruction = 'historical and informative';
       }
 
       const prompt = `Write a ${styleInstruction} fact about ${vegetableName} in 1-2 sentences.`;

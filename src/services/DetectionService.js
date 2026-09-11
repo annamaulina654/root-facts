@@ -9,14 +9,14 @@ export class DetectionService {
     this.config = {
       modelPath: '/model/model.json',
       metadataPath: '/model/metadata.json',
-      inputSize: [224, 224], 
+      inputSize: [224, 224],
       normalizationFactor: 255
     };
   }
 
   // TODO [Basic] Muat model dan metadata
   // TODO [Advance] Strategi Backend Adaptive
- async loadModel(onProgress) {
+  async loadModel(onProgress) {
     try {
       const backend = navigator.gpu ? 'webgpu' : 'webgl';
       await tf.setBackend(backend);
@@ -28,7 +28,7 @@ export class DetectionService {
       this.labels = metadata.labels;
 
       // Pastikan path model.json sudah benar mengarah ke public/model/model.json
-// Ganti tf.loadGraphModel menjadi tf.loadLayersModel
+      // Ganti tf.loadGraphModel menjadi tf.loadLayersModel
       this.model = await tf.loadLayersModel(this.config.modelPath, {
         onProgress: (fraction) => {
           if (onProgress) {
@@ -41,10 +41,10 @@ export class DetectionService {
         }
       });
 
-      return { 
-        success: true, 
+      return {
+        success: true,
         backend: tf.getBackend(),
-        labels: this.labels 
+        labels: this.labels
       };
     } catch (error) {
       console.error('Gagal memuat model:', error);

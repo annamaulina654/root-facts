@@ -112,11 +112,11 @@ function CameraSection({
           )}
         </div>
 
-<div className="camera-controls">
+        <div className="camera-controls">
           <button
             id="btn-toggle"
             className={`capture-btn ${isRunning ? 'scanning' : ''}`}
-            onClick={() => onToggleCamera(cameraType)} 
+            onClick={() => onToggleCamera(cameraType)}
             disabled={buttonDisabled}
             aria-label={buttonText}
             // 1. Baris "style={{ opacity: ... }}" sudah DIHAPUS agar tidak pernah transparan
@@ -173,7 +173,7 @@ function CameraSection({
               onChange={handleToneChange}
               disabled={isRunning}
             >
-              {TONE_CONFIG.availableTones.map(option => (
+              {TONE_CONFIG.availableTones.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>

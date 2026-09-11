@@ -81,7 +81,7 @@ export class CameraService {
     const parsedFPS = parseInt(fps, 10);
     if (parsedFPS >= 15 && parsedFPS <= 60) {
       this.currentFPS = parsedFPS;
-      
+
       // Jika kamera sedang aktif, mulai ulang stream untuk menerapkan batasan FPS keras (Hard Limit)
       if (this.isActive() && this.stream) {
         const currentTrack = this.stream.getVideoTracks()[0];

@@ -9,7 +9,7 @@ import { RootFactsService } from './services/RootFactsService';
 
 function App() {
   const { state, actions } = useAppState();
-  
+
   // Referensi yang diperbaiki dan dilengkapi
   const detectionCleanupRef = useRef(null);
   const isRunningRef = useRef(false);
@@ -17,7 +17,7 @@ function App() {
   const consecutiveFramesRef = useRef(0);
   const scanStartTimeRef = useRef(0);
   const downloadProgress = useRef({});
-  
+
   const [currentTone, setCurrentTone] = useState('normal');
 
   // 1. Inisialisasi Layanan
@@ -34,7 +34,7 @@ function App() {
 
         const onProgress = (progressData) => {
           if (!isMounted) return;
-          
+
           if (progressData.status === 'progress' && progressData.file) {
             downloadProgress.current[progressData.file] = progressData.progress;
 
@@ -53,27 +53,27 @@ function App() {
             });
 
             if (isTransformers) {
-               const encText = encoder > 0 ? `Encoder: ${encoder}%` : 'Encoder: 0%';
-               const decText = decoder > 0 ? `Decoder: ${decoder}%` : 'Decoder: 0%';
-               actions.setModelStatus(`Mengunduh AI... ${encText} | ${decText}`);
+              const encText = encoder > 0 ? `Encoder: ${encoder}%` : 'Encoder: 0%';
+              const decText = decoder > 0 ? `Decoder: ${decoder}%` : 'Decoder: 0%';
+              actions.setModelStatus(`Mengunduh AI... ${encText} | ${decText}`);
             } else {
-               actions.setModelStatus(`Mengunduh AI... ${Math.round(progressData.progress)}%`);
+              actions.setModelStatus(`Mengunduh AI... ${Math.round(progressData.progress)}%`);
             }
           }
         };
 
         await generator.initialize(onProgress);
-        
+
         await detector.loadModel((tfProgress) => {
-           if (isMounted) actions.setModelStatus(`Memuat Detektor... ${Math.round(tfProgress.progress)}%`);
+          if (isMounted) actions.setModelStatus(`Memuat Detektor... ${Math.round(tfProgress.progress)}%`);
         });
-        
+
         if (isMounted) {
           actions.setModelStatus('Siap');
         }
       } catch (err) {
         if (isMounted) {
-          actions.setError('Gagal memuat model: ' + err.message);
+          actions.setError(`Gagal memuat model: ${  err.message}`);
           actions.setModelStatus('Error');
         }
       }
@@ -97,9 +97,9 @@ function App() {
   }, [state.services.camera]);
 
   // 3. Fungsi Looping Deteksi (Dengan Stabilisator 3 Detik & 30 Frame)
-// 3. Fungsi Looping Deteksi (Keseimbangan Kecepatan & Akurasi)
-// Helper untuk membuat jeda (Sama seperti createDelay di referensi Anda)
-  const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+  // 3. Fungsi Looping Deteksi (Keseimbangan Kecepatan & Akurasi)
+  // Helper untuk membuat jeda (Sama seperti createDelay di referensi Anda)
+  const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
   // 1. FUNGSI LOOP DETEKSI YANG BARU
   const startDetectionLoop = useCallback(async () => {
@@ -120,19 +120,19 @@ function App() {
 
           if (consecutiveFramesRef.current >= 5) {
             // 1. Hentikan deteksi SEKARANG JUGA
-            isRunningRef.current = false; 
+            isRunningRef.current = false;
             if (detectionCleanupRef.current) {
               cancelAnimationFrame(detectionCleanupRef.current);
             }
-            
+
             // 2. Matikan hardware kamera dan ubah tombol UI
-            state.services.camera.stopCamera(); 
-            actions.setRunning(false);          
+            state.services.camera.stopCamera();
+            actions.setRunning(false);
             actions.setModelStatus('Siap');
-            
+
             // 3. TAHAN UI di status "Mencari..." selama 1.5 detik agar terlihat profesional
             actions.setAppState('analyzing');
-            await delay(1500); 
+            await delay(1500);
 
             // 4. Setelah jeda selesai, tampilkan hasil sayurannya
             actions.setDetectionResult(result);
@@ -140,7 +140,7 @@ function App() {
 
             // 5. Mulai hasilkan fakta AI
             if (state.services.generator.isReady()) {
-              actions.setFunFactData(null); 
+              actions.setFunFactData(null);
               // Jeda sedikit sebelum AI bekerja
               await delay(500);
               const factText = await state.services.generator.generateFacts(result.className);
@@ -157,7 +157,7 @@ function App() {
         }
       }
     } catch (err) {
-      console.error("Deteksi error:", err);
+      console.error('Deteksi error:', err);
     }
 
     if (isRunningRef.current) {
@@ -173,22 +173,22 @@ function App() {
       if (detectionCleanupRef.current) cancelAnimationFrame(detectionCleanupRef.current);
       state.services.camera?.stopCamera();
       actions.setRunning(false);
-      actions.setModelStatus('Siap'); 
+      actions.setModelStatus('Siap');
     } else {
       try {
-        actions.resetResults(); 
-        targetClassRef.current = null;       
+        actions.resetResults();
+        targetClassRef.current = null;
         consecutiveFramesRef.current = 0;
-        
+
         // 1. Ubah UI ke "Mencari..." segera setelah ditekan
         actions.setAppState('analyzing');
-        
+
         // 2. Nyalakan perangkat kamera
-        await state.services.camera?.startCamera(deviceId); 
-        
+        await state.services.camera?.startCamera(deviceId);
+
         isRunningRef.current = true;
         actions.setRunning(true);
-        actions.setModelStatus('Aktif'); 
+        actions.setModelStatus('Aktif');
 
         // 3. JEDA PEMANASAN 1.5 DETIK (Agar Anda sempat mengarahkan kamera ke sayuran)
         await delay(1500);
@@ -196,13 +196,13 @@ function App() {
         // 4. Baru mulai mendeteksi
         startDetectionLoop();
       } catch (err) {
-        actions.setError('Gagal mengakses kamera: ' + err.message);
+        actions.setError(`Gagal mengakses kamera: ${  err.message}`);
       }
     }
   }, [state.services, actions, startDetectionLoop]);
 
   // 5. Fungsi Ubah Nada Fakta
-const handleToneChange = useCallback((newTone) => {
+  const handleToneChange = useCallback((newTone) => {
     setCurrentTone(newTone);
     if (state.services.generator) {
       state.services.generator.setTone(newTone); // <-- Pastikan ini aktif
@@ -218,7 +218,7 @@ const handleToneChange = useCallback((newTone) => {
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(factText);
       } else {
-        const textArea = document.createElement("textarea");
+        const textArea = document.createElement('textarea');
         textArea.value = factText;
         document.body.appendChild(textArea);
         textArea.focus();
@@ -251,7 +251,7 @@ const handleToneChange = useCallback((newTone) => {
           detectionResult={state.detectionResult}
           funFactData={state.funFactData}
           error={state.error}
-          onCopyFact={handleCopyFact} 
+          onCopyFact={handleCopyFact}
         />
       </main>
 
