@@ -202,10 +202,10 @@ function App() {
   }, [state.services, actions, startDetectionLoop]);
 
   // 5. Fungsi Ubah Nada Fakta
-  const handleToneChange = useCallback((newTone) => {
+const handleToneChange = useCallback((newTone) => {
     setCurrentTone(newTone);
     if (state.services.generator) {
-      state.services.generator.setTone(newTone); 
+      state.services.generator.setTone(newTone); // <-- Pastikan ini aktif
     }
   }, [state.services.generator]);
 

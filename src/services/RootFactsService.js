@@ -14,10 +14,18 @@ export class RootFactsService {
     this.modelName = 'Xenova/flan-t5-small'; 
     this.currentBackend = null;
     this.currentTone = TONE_CONFIG?.defaultTone || 'normal';
+
+    // --- TAMBAHKAN BLOK INI ---
+    // Konfigurasi parameter generasi AI
+    this.config = {
+      maxTokens: 60,
+      temperature: 0.7,
+      topP: 0.9,
+      generationDelay: 500
+    };
   }
 
   // TODO [Basic] Muat model dan inisialisasi pipeline text2text-generation
-  // TODO [Advance] Implementasikan strategi Backend Adaptive
   async initialize(onProgress) {
     try {
       // 1. [Advanced] Pemilihan Device Eksekusi: WebGPU jika tersedia, fallback ke WASM
@@ -61,39 +69,37 @@ export class RootFactsService {
   // TODO [Basic] Lakukan prediksi pada elemen gambar yang diberikan dan kembalikan hasilnya
   // TODO [Skilled] Konfigurasikan parameter generasi berdasarkan kebutuhan
   // TODO [Advance] Implementasikan parameter tone untuk mengatur nada fakta yang dihasilkan
-  async generateFacts(vegetableName) {
-    if (!this.isReady()) {
-      throw new Error('Model belum siap atau sedang sibuk menghasilkan konten.');
-    }
-
-    if (!vegetableName || typeof vegetableName !== 'string') {
-      throw new Error('Nama sayuran yang valid diperlukan.');
+async generateFacts(vegetableName) {
+    if (!this.isModelLoaded || this.isGenerating) {
+      throw new Error('Model belum siap atau sedang sibuk.');
     }
 
     try {
       this.isGenerating = true;
+      await new Promise(resolve => setTimeout(resolve, this.config.generationDelay || 500));
 
-      // 3. [Advanced] Fitur Persona Dinamis: Merangkai gaya bahasa ke dalam prompt
-      // Misal currentTone bernilai "lucu" -> "Write a funny fact..."
-      const styleModifier = this.currentTone === 'normal' ? 'interesting' : this.currentTone;
-      const prompt = `Write a ${styleModifier} fact about ${vegetableName}. Keep it short and engaging in 1 to 2 sentences.`;
+      // --- ADVANCED: FITUR PERSONA DINAMIS ---
+      // Menyesuaikan instruksi prompt berdasarkan currentTone yang dipilih pengguna
+      let styleInstruction = "interesting and simple";
+      if (this.currentTone === 'lucu' || this.currentTone === 'funny') {
+        styleInstruction = "funny and humorous";
+      } else if (this.currentTone === 'sejarah' || this.currentTone === 'historical') {
+        styleInstruction = "historical and informative";
+      }
 
-      // 4. [Skilled] Mengatur parameter performa AI untuk hasil yang natural namun dibatasi
+      const prompt = `Write a ${styleInstruction} fact about ${vegetableName} in 1-2 sentences.`;
+
       const result = await this.generator(prompt, {
-        max_new_tokens: 60,   // Batas panjang teks hasil (Skilled)
-        temperature: 0.7,     // Keseimbangan antara logis dan kreatif (Skilled)
-        do_sample: true,      // Mengizinkan variasi hasil (Skilled)
-        top_p: 0.9            // Memotong probabilitas kata yang terlalu aneh (Skilled)
+        max_new_tokens: this.config.maxTokens,
+        temperature: this.config.temperature,
+        do_sample: true,
+        top_p: this.config.topP
       });
 
-      const generatedText = result[0].generated_text;
-
-      return generatedText.trim();
-
+      return result[0].generated_text.trim();
     } catch (error) {
-      console.error('Kesalahan saat menghasilkan fakta:', error);
-      // Mengembalikan string 'error' agar UI InfoPanel (Kriteria 2) dapat menanganinya dengan elegan
-      return 'error'; 
+      console.error('Kesalahan generasi fakta:', error);
+      return 'error';
     } finally {
       this.isGenerating = false;
     }

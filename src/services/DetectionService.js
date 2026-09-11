@@ -16,20 +16,19 @@ export class DetectionService {
 
   // TODO [Basic] Muat model dan metadata
   // TODO [Advance] Strategi Backend Adaptive
-  async loadModel(onProgress) {
+ async loadModel(onProgress) {
     try {
-      // 1. [Advanced] Deteksi ketersediaan WebGPU dengan fallback ke WebGL
       const backend = navigator.gpu ? 'webgpu' : 'webgl';
       await tf.setBackend(backend);
       await tf.ready();
 
-      // 2. Fetch metadata (label sayuran)
       const metadataResponse = await fetch(this.config.metadataPath);
       if (!metadataResponse.ok) throw new Error('Metadata tidak ditemukan');
       const metadata = await metadataResponse.json();
       this.labels = metadata.labels;
 
-      // 3. Muat model dengan callback progress (Untuk kriteria Skilled di UI)
+      // Pastikan path model.json sudah benar mengarah ke public/model/model.json
+// Ganti tf.loadGraphModel menjadi tf.loadLayersModel
       this.model = await tf.loadLayersModel(this.config.modelPath, {
         onProgress: (fraction) => {
           if (onProgress) {
@@ -49,7 +48,7 @@ export class DetectionService {
       };
     } catch (error) {
       console.error('Gagal memuat model:', error);
-      throw new Error(`Gagal memuat model: ${error.message}`);
+      throw new Error(`Gagal memuat model: ${error.message}. Periksa kembali isi file model.json di folder public.`);
     }
   }
 
