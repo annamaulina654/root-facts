@@ -3,39 +3,73 @@ import Header from './components/Header';
 import CameraSection from './components/CameraSection';
 import InfoPanel from './components/InfoPanel';
 import { useAppState } from './hooks/useAppState';
+import { CameraService } from './services/CameraService';
+import { DetectionService } from './services/DetectionService';
+import { RootFactsService } from './services/RootFactsService';
 
 function App() {
   const { state, actions } = useAppState();
+  
+  // Referensi yang diperbaiki dan dilengkapi
   const detectionCleanupRef = useRef(null);
   const isRunningRef = useRef(false);
+  const targetClassRef = useRef(null);
+  const consecutiveFramesRef = useRef(0);
+  const scanStartTimeRef = useRef(0);
+  const downloadProgress = useRef({});
+  
   const [currentTone, setCurrentTone] = useState('normal');
 
-  // TODO [Basic] Inisialisasi layanan deteksi, kamera, dan generator fakta saat aplikasi dimuat
-useEffect(() => {
+  // 1. Inisialisasi Layanan
+  useEffect(() => {
     let isMounted = true;
 
     const initServices = async () => {
       try {
-        if (!state.services.detector || !state.services.generator) return;
+        const camera = new CameraService();
+        const detector = new DetectionService();
+        const generator = new RootFactsService();
 
-        // Callback untuk menangkap progress dari Transformers.js (Untuk Kriteria 1 UI)
+        actions.setServices({ camera, detector, generator });
+
         const onProgress = (progressData) => {
           if (!isMounted) return;
           
-          // Mengatur string format "Encoder: 21% | Decoder: 18%" 
-          // (Asumsi service Anda mengirim data progress dalam bentuk tertentu)
           if (progressData.status === 'progress' && progressData.file) {
-             // Modifikasi string modelStatus via actions sesuai data progress
-             // actions.setModelStatus(`Mengunduh model AI... ${progressData.file}: ${Math.round(progressData.progress)}%`);
+            downloadProgress.current[progressData.file] = progressData.progress;
+
+            let encoder = 0;
+            let decoder = 0;
+            let isTransformers = false;
+
+            Object.entries(downloadProgress.current).forEach(([fileName, progress]) => {
+              if (fileName.includes('encoder')) {
+                encoder = Math.round(progress);
+                isTransformers = true;
+              } else if (fileName.includes('decoder')) {
+                decoder = Math.round(progress);
+                isTransformers = true;
+              }
+            });
+
+            if (isTransformers) {
+               const encText = encoder > 0 ? `Encoder: ${encoder}%` : 'Encoder: 0%';
+               const decText = decoder > 0 ? `Decoder: ${decoder}%` : 'Decoder: 0%';
+               actions.setModelStatus(`Mengunduh AI... ${encText} | ${decText}`);
+            } else {
+               actions.setModelStatus(`Mengunduh AI... ${Math.round(progressData.progress)}%`);
+            }
           }
         };
 
-        // Inisialisasi Model AI
-        await state.services.generator.initialize(onProgress);
-        await state.services.detector.initialize();
+        await generator.initialize(onProgress);
+        
+        await detector.loadModel((tfProgress) => {
+           if (isMounted) actions.setModelStatus(`Memuat Detektor... ${Math.round(tfProgress.progress)}%`);
+        });
         
         if (isMounted) {
-          actions.setModelStatus('Siap'); // Status berubah jadi Siap di Header
+          actions.setModelStatus('Siap');
         }
       } catch (err) {
         if (isMounted) {
@@ -50,10 +84,9 @@ useEffect(() => {
     return () => {
       isMounted = false;
     };
-  }, [state.services, actions]);
+  }, []);
 
-
-  // TODO [Basic] Bersihkan sumber daya saat komponen ditinggalkan
+  // 2. Pembersihan Saat Komponen Ditutup
   useEffect(() => {
     return () => {
       if (detectionCleanupRef.current) {
@@ -63,71 +96,128 @@ useEffect(() => {
     };
   }, [state.services.camera]);
 
-  // TODO [Basic] Fungsi untuk memulai loop deteksi
+  // 3. Fungsi Looping Deteksi (Dengan Stabilisator 3 Detik & 30 Frame)
+// 3. Fungsi Looping Deteksi (Keseimbangan Kecepatan & Akurasi)
+// Helper untuk membuat jeda (Sama seperti createDelay di referensi Anda)
+  const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+  // 1. FUNGSI LOOP DETEKSI YANG BARU
   const startDetectionLoop = useCallback(async () => {
-    if (!isRunningRef.current || !state.services.detector) return;
+    if (!isRunningRef.current || !state.services.detector || !state.services.camera.video) return;
 
     try {
-      // Pastikan fungsi predictFrame di dalam detector sudah menggunakan tf.tidy()
-      const result = await state.services.detector.predictFrame();
-      
-      if (result && result.label) {
-        // Lakukan generate fun fact berdasarkan label (Kriteria 2 Basic)
-        // Dan lempar currentTone untuk persona dinamis (Kriteria 2 Advanced)
-        actions.setDetectionResult(result);
-        
-        // Contoh pemanggilan generator:
-        // const fact = await state.services.generator.generateFact(result.label, currentTone);
-        // actions.setFunFactData(fact);
+      if (state.services.camera.isReady()) {
+        const result = await state.services.detector.predict(state.services.camera.video);
+
+        // Syarat: Skor 80% dan stabil selama 5 frame (sangat responsif)
+        if (result && result.className && result.score > 0.80) {
+          if (targetClassRef.current === result.className) {
+            consecutiveFramesRef.current += 1;
+          } else {
+            targetClassRef.current = result.className;
+            consecutiveFramesRef.current = 1;
+          }
+
+          if (consecutiveFramesRef.current >= 5) {
+            // 1. Hentikan deteksi SEKARANG JUGA
+            isRunningRef.current = false; 
+            if (detectionCleanupRef.current) {
+              cancelAnimationFrame(detectionCleanupRef.current);
+            }
+            
+            // 2. Matikan hardware kamera dan ubah tombol UI
+            state.services.camera.stopCamera(); 
+            actions.setRunning(false);          
+            actions.setModelStatus('Siap');
+            
+            // 3. TAHAN UI di status "Mencari..." selama 1.5 detik agar terlihat profesional
+            actions.setAppState('analyzing');
+            await delay(1500); 
+
+            // 4. Setelah jeda selesai, tampilkan hasil sayurannya
+            actions.setDetectionResult(result);
+            actions.setAppState('result');
+
+            // 5. Mulai hasilkan fakta AI
+            if (state.services.generator.isReady()) {
+              actions.setFunFactData(null); 
+              // Jeda sedikit sebelum AI bekerja
+              await delay(500);
+              const factText = await state.services.generator.generateFacts(result.className);
+              actions.setFunFactData(factText);
+            }
+
+            // Bersihkan memori
+            targetClassRef.current = null;
+            consecutiveFramesRef.current = 0;
+            return; // Loop selesai
+          }
+        } else {
+          if (consecutiveFramesRef.current > 0) consecutiveFramesRef.current -= 1;
+        }
       }
     } catch (err) {
       console.error("Deteksi error:", err);
     }
 
-    // Loop frame selanjutnya
-    detectionCleanupRef.current = requestAnimationFrame(startDetectionLoop);
-  }, [state.services, actions, currentTone]);
-
-  // TODO [Basic] Fungsi untuk memulai dan menghentikan kamera
-  const handleToggleCamera = useCallback(async () => {
     if (isRunningRef.current) {
-      // Hentikan Kamera
+      detectionCleanupRef.current = requestAnimationFrame(startDetectionLoop);
+    }
+  }, [state.services, actions]);
+
+
+  // 2. FUNGSI TOGGLE KAMERA YANG BARU
+  const handleToggleCamera = useCallback(async (deviceId) => {
+    if (isRunningRef.current) {
       isRunningRef.current = false;
-      if (detectionCleanupRef.current) {
-        cancelAnimationFrame(detectionCleanupRef.current);
-      }
+      if (detectionCleanupRef.current) cancelAnimationFrame(detectionCleanupRef.current);
       state.services.camera?.stopCamera();
       actions.setRunning(false);
       actions.setModelStatus('Siap'); 
     } else {
-      // Mulai Kamera
       try {
-        await state.services.camera?.startCamera();
+        actions.resetResults(); 
+        targetClassRef.current = null;       
+        consecutiveFramesRef.current = 0;
+        
+        // 1. Ubah UI ke "Mencari..." segera setelah ditekan
+        actions.setAppState('analyzing');
+        
+        // 2. Nyalakan perangkat kamera
+        await state.services.camera?.startCamera(deviceId); 
+        
         isRunningRef.current = true;
         actions.setRunning(true);
-        actions.setModelStatus('Aktif'); // Titik jadi hijau di Header
+        actions.setModelStatus('Aktif'); 
+
+        // 3. JEDA PEMANASAN 1.5 DETIK (Agar Anda sempat mengarahkan kamera ke sayuran)
+        await delay(1500);
+
+        // 4. Baru mulai mendeteksi
         startDetectionLoop();
       } catch (err) {
-        actions.setError('Gagal mengakses kamera');
+        actions.setError('Gagal mengakses kamera: ' + err.message);
       }
     }
   }, [state.services, actions, startDetectionLoop]);
 
-  // TODO [Advance] Fungsi untuk mengubah nada fakta yang dihasilkan
+  // 5. Fungsi Ubah Nada Fakta
   const handleToneChange = useCallback((newTone) => {
     setCurrentTone(newTone);
-    // Jika ada fungsi di generator untuk set tone, panggil di sini
-    // state.services.generator.setTone(newTone); 
-  }, []);
+    if (state.services.generator) {
+      state.services.generator.setTone(newTone); 
+    }
+  }, [state.services.generator]);
 
-  // TODO [Skilled] Fungsi untuk menyalin fakta ke clipboard
-  const handleCopyFact = useCallback(async (factText) => {
+  // 6. Fungsi Salin Fakta
+  const handleCopyFact = useCallback(async () => {
+    const factText = state.funFactData;
+    if (!factText || factText === 'error') return;
+
     try {
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(factText);
-        // Tampilkan toast/alert sukses jika perlu
       } else {
-        // Fallback jika tidak support API clipboard
         const textArea = document.createElement("textarea");
         textArea.value = factText;
         document.body.appendChild(textArea);
@@ -139,7 +229,7 @@ useEffect(() => {
     } catch (err) {
       console.error('Gagal menyalin teks', err);
     }
-  }, []);
+  }, [state.funFactData]);
 
   return (
     <div className="app-container">

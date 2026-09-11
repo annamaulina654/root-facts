@@ -72,7 +72,7 @@ function CameraSection({
     }
   };
 
-  const isModelReady = modelStatus === 'Model AI Siap';
+  const isModelReady = modelStatus === 'Siap' || modelStatus === 'Aktif';
   const buttonDisabled = !isModelReady;
   const buttonText = isRunning ? 'Stop Scan' : 'Mulai Scan';
 
@@ -112,16 +112,20 @@ function CameraSection({
           )}
         </div>
 
-        <div className="camera-controls">
+<div className="camera-controls">
           <button
             id="btn-toggle"
             className={`capture-btn ${isRunning ? 'scanning' : ''}`}
-            onClick={onToggleCamera}
+            onClick={() => onToggleCamera(cameraType)} 
             disabled={buttonDisabled}
             aria-label={buttonText}
-            style={{ opacity: buttonDisabled ? 0.6 : 1 }}
+            // 1. Baris "style={{ opacity: ... }}" sudah DIHAPUS agar tidak pernah transparan
           >
-            <ScanLine size={24} />
+            {/* 2. Ikon ScanLine HANYA muncul saat model sudah siap dan kamera belum menyala.
+                   Saat kamera aktif (enable) atau saat loading, tombol HANYA berwarna hijau kosong */}
+            {!buttonDisabled && !isRunning && (
+              <ScanLine size={24} />
+            )}
           </button>
         </div>
 
