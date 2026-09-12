@@ -53,7 +53,7 @@ function App() {
         });
 
         console.log(
-          '✅ TensorFlow.js model berhasil dimuat'
+          'TensorFlow.js model berhasil dimuat'
         );
 
         if (isMounted) {
@@ -63,7 +63,7 @@ function App() {
         }
       } catch (error) {
         console.error(
-          '❌ TensorFlow.js gagal dimuat:',
+          'TensorFlow.js gagal dimuat:',
           error
         );
 
@@ -138,7 +138,7 @@ function App() {
         );
 
         console.log(
-          '✅ Transformers.js berhasil dimuat'
+          'Transformers.js berhasil dimuat'
         );
 
         if (isMounted) {
@@ -148,7 +148,7 @@ function App() {
         }
       } catch (error) {
         console.error(
-          '⚠️ Transformers.js gagal dimuat:',
+          'Transformers.js gagal dimuat:',
           error
         );
 
@@ -202,13 +202,13 @@ function App() {
           );
 
         console.log(
-          '📷 Hasil deteksi:',
+          'Hasil deteksi:',
           result
         );
 
         if (result) {
           console.log(
-            `📷 Prediction: ${result.className} | ${result.confidence}%`
+            `Prediction: ${result.className} | ${result.confidence}%`
           );
         }
         if (
@@ -265,7 +265,7 @@ function App() {
             );
 
             console.log(
-              '✅ Prediction diteruskan ke UI:',
+              'Prediction diteruskan ke UI:',
               result
             );
 
@@ -291,7 +291,7 @@ function App() {
                   );
 
                   console.log(
-                    '✅ Fun Fact berhasil:',
+                    'Fun Fact berhasil:',
                     factText
                   );
                 } else {
@@ -301,7 +301,7 @@ function App() {
                 }
               } catch (factError) {
                 console.error(
-                  '❌ Gagal menghasilkan Fun Fact:',
+                  'Gagal menghasilkan Fun Fact:',
                   factError
                 );
 
@@ -337,7 +337,7 @@ function App() {
       }
     } catch (error) {
       console.error(
-        '❌ Deteksi error:',
+        'Deteksi error:',
         error
       );
     }
