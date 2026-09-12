@@ -23,56 +23,143 @@ function App() {
     let isMounted = true;
 
     const initServices = async () => {
+      const camera = new CameraService();
+      const detector = new DetectionService();
+      const generator = new RootFactsService();
+
+      actions.setServices({
+        camera,
+        detector,
+        generator,
+      });
+
       try {
-        const camera = new CameraService();
-        const detector = new DetectionService();
-        const generator = new RootFactsService();
+        console.log(
+          '=== Memulai TensorFlow.js ==='
+        );
 
-        actions.setServices({ camera, detector, generator });
-
-        const onProgress = (progressData) => {
-          if (!isMounted) return;
-
-          if (progressData.status === 'progress' && progressData.file) {
-            downloadProgress.current[progressData.file] = progressData.progress;
-
-            let encoder = 0;
-            let decoder = 0;
-            let isTransformers = false;
-
-            Object.entries(downloadProgress.current).forEach(([fileName, progress]) => {
-              if (fileName.includes('encoder')) {
-                encoder = Math.round(progress);
-                isTransformers = true;
-              } else if (fileName.includes('decoder')) {
-                decoder = Math.round(progress);
-                isTransformers = true;
-              }
-            });
-
-            if (isTransformers) {
-              const encText = encoder > 0 ? `Encoder: ${encoder}%` : 'Encoder: 0%';
-              const decText = decoder > 0 ? `Decoder: ${decoder}%` : 'Decoder: 0%';
-              actions.setModelStatus(`Mengunduh AI... ${encText} | ${decText}`);
-            } else {
-              actions.setModelStatus(`Mengunduh AI... ${Math.round(progressData.progress)}%`);
-            }
-          }
-        };
-
-        await generator.initialize(onProgress);
+        actions.setModelStatus(
+          'Menunggu Model Deteksi...'
+        );
 
         await detector.loadModel((tfProgress) => {
-          if (isMounted) actions.setModelStatus(`Memuat Detektor... ${Math.round(tfProgress.progress)}%`);
+          if (!isMounted) return;
+
+          actions.setModelStatus(
+            `Menunggu Model... ${Math.round(
+              tfProgress.progress
+            )}%`
+          );
         });
 
+        console.log(
+          '✅ TensorFlow.js model berhasil dimuat'
+        );
+
         if (isMounted) {
-          actions.setModelStatus('Siap');
+          actions.setModelStatus(
+            'Detektor Siap'
+          );
         }
-      } catch (err) {
+      } catch (error) {
+        console.error(
+          '❌ TensorFlow.js gagal dimuat:',
+          error
+        );
+
         if (isMounted) {
-          actions.setError(`Gagal memuat model: ${  err.message}`);
-          actions.setModelStatus('Error');
+          actions.setError(
+            `Gagal memuat model deteksi: ${error.message}`
+          );
+
+          actions.setModelStatus(
+            'Error Detektor'
+          );
+        }
+
+        return;
+      }
+
+      try {
+        console.log(
+          '=== Memulai Transformers.js ==='
+        );
+
+        actions.setModelStatus(
+          'Memuat Generative AI...'
+        );
+
+        await generator.initialize(
+          (progressData) => {
+            if (!isMounted) return;
+
+            if (
+              progressData?.status === 'progress' &&
+          progressData?.file
+            ) {
+              downloadProgress.current[
+                progressData.file
+              ] = progressData.progress;
+
+              let encoder = 0;
+              let decoder = 0;
+
+              Object.entries(
+                downloadProgress.current
+              ).forEach(
+                ([fileName, progress]) => {
+                  if (
+                    fileName
+                      .toLowerCase()
+                      .includes('encoder')
+                  ) {
+                    encoder = Math.round(
+                      progress
+                    );
+                  }
+
+                  if (
+                    fileName
+                      .toLowerCase()
+                      .includes('decoder')
+                  ) {
+                    decoder = Math.round(
+                      progress
+                    );
+                  }
+                }
+              );
+
+              actions.setModelStatus(
+                `Mengunduh AI... Encoder: ${encoder}% | Decoder: ${decoder}%`
+              );
+            }
+          }
+        );
+
+        console.log(
+          '✅ Transformers.js berhasil dimuat'
+        );
+
+        if (isMounted) {
+          actions.setModelStatus(
+            'Siap'
+          );
+        }
+      } catch (error) {
+        console.error(
+          '⚠️ Transformers.js gagal dimuat:',
+          error
+        );
+
+        if (isMounted) {
+          actions.setModelStatus(
+            'Detektor Siap'
+          );
+
+          actions.setError(
+            `Generative AI tidak tersedia: ${error.message}`
+          );
         }
       }
     };
@@ -95,60 +182,177 @@ function App() {
 
   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  const startDetectionLoop = useCallback(async () => {
-    if (!isRunningRef.current || !state.services.detector || !state.services.camera.video) return;
+  const startDetectionLoop =
+  useCallback(async () => {
+    if (
+      !isRunningRef.current ||
+      !state.services.detector ||
+      !state.services.camera.video
+    ) {
+      return;
+    }
 
     try {
-      if (state.services.camera.isReady()) {
-        const result = await state.services.detector.predict(state.services.camera.video);
+      if (
+        state.services.camera.isReady()
+      ) {
+        const result =
+          await state.services.detector.predict(
+            state.services.camera.video
+          );
 
-        if (result && result.className && result.score > 0.80) {
-          if (targetClassRef.current === result.className) {
+        console.log(
+          '📷 Hasil deteksi:',
+          result
+        );
+
+        if (result) {
+          console.log(
+            `📷 Prediction: ${result.className} | ${result.confidence}%`
+          );
+        }
+        if (
+          result &&
+          result.className &&
+          result.isValid
+        ) {
+          if (
+            targetClassRef.current ===
+            result.className
+          ) {
             consecutiveFramesRef.current += 1;
           } else {
-            targetClassRef.current = result.className;
+            targetClassRef.current =
+              result.className;
+
             consecutiveFramesRef.current = 1;
           }
 
-          if (consecutiveFramesRef.current >= 5) {
+          console.log(
+            `Frame konsisten: ${consecutiveFramesRef.current}/5`
+          );
+
+          if (
+            consecutiveFramesRef.current >= 5
+          ) {
             isRunningRef.current = false;
-            if (detectionCleanupRef.current) {
-              cancelAnimationFrame(detectionCleanupRef.current);
+
+            if (
+              detectionCleanupRef.current
+            ) {
+              cancelAnimationFrame(
+                detectionCleanupRef.current
+              );
             }
 
             state.services.camera.stopCamera();
+
             actions.setRunning(false);
             actions.setModelStatus('Siap');
 
-            actions.setAppState('analyzing');
+            actions.setAppState(
+              'analyzing'
+            );
+
             await delay(1500);
 
-            actions.setDetectionResult(result);
-            actions.setAppState('result');
+            actions.setDetectionResult(
+              result
+            );
 
-            if (state.services.generator.isReady()) {
+            actions.setAppState(
+              'result'
+            );
+
+            console.log(
+              '✅ Prediction diteruskan ke UI:',
+              result
+            );
+
+            if (
+              state.services.generator?.isReady()
+            ) {
               actions.setFunFactData(null);
-              await delay(500);
-              const factText = await state.services.generator.generateFacts(result.className);
-              actions.setFunFactData(factText);
+
+              try {
+                await delay(500);
+
+                const factText =
+                  await state.services.generator.generateFacts(
+                    result.className
+                  );
+
+                if (
+                  factText &&
+                  factText !== 'error'
+                ) {
+                  actions.setFunFactData(
+                    factText
+                  );
+
+                  console.log(
+                    '✅ Fun Fact berhasil:',
+                    factText
+                  );
+                } else {
+                  actions.setFunFactData(
+                    'Fun Fact belum tersedia.'
+                  );
+                }
+              } catch (factError) {
+                console.error(
+                  '❌ Gagal menghasilkan Fun Fact:',
+                  factError
+                );
+
+                actions.setFunFactData(
+                  'Fun Fact belum tersedia pada perangkat ini.'
+                );
+              }
             }
 
-            targetClassRef.current = null;
+            targetClassRef.current =
+              null;
+
             consecutiveFramesRef.current = 0;
+
             return;
           }
         } else {
-          if (consecutiveFramesRef.current > 0) consecutiveFramesRef.current -= 1;
+          if (
+            result?.className
+          ) {
+            console.log(
+              `Confidence ${result.confidence}% belum mencapai threshold.`
+            );
+          }
+
+          if (
+            consecutiveFramesRef.current >
+            0
+          ) {
+            consecutiveFramesRef.current -= 1;
+          }
         }
       }
-    } catch (err) {
-      console.error('Deteksi error:', err);
+    } catch (error) {
+      console.error(
+        '❌ Deteksi error:',
+        error
+      );
     }
 
     if (isRunningRef.current) {
-      detectionCleanupRef.current = requestAnimationFrame(startDetectionLoop);
+      detectionCleanupRef.current =
+        requestAnimationFrame(
+          startDetectionLoop
+        );
     }
-  }, [state.services, actions]);
+  }, [
+    state.services,
+    actions,
+    delay,
+  ]);
 
 
   const handleToggleCamera = useCallback(async (deviceId) => {
