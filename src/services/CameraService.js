@@ -3,7 +3,7 @@ export class CameraService {
     this.stream = null;
     this.video = null;
     this.canvas = null;
-    this.currentFPS = 30; // Default nilai awal FPS
+    this.currentFPS = 30;
   }
 
   setVideoElement(videoElement) {
@@ -16,12 +16,10 @@ export class CameraService {
 
   async loadCameras() {
     try {
-      // Basic: Meminta izin sementara untuk mengumpulkan daftar perangkat
       const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
       const devices = await navigator.mediaDevices.enumerateDevices();
       const cameras = devices.filter((device) => device.kind === 'videoinput');
 
-      // Membersihkan izin stream sementara agar lampu kamera mati
       tempStream.getTracks().forEach((track) => track.stop());
 
       if (cameras.length === 0) {
@@ -40,9 +38,8 @@ export class CameraService {
 
   async startCamera(selectedCameraId) {
     try {
-      this.stopCamera(); // Pastikan tidak ada stream yang bertumpuk
+      this.stopCamera();
 
-      // Skilled: Menerapkan FPS limit secara native pada MediaStream constraints
       const constraints = {
         video: {
           deviceId: selectedCameraId ? { exact: selectedCameraId } : undefined,
@@ -55,7 +52,7 @@ export class CameraService {
 
       if (this.video) {
         this.video.srcObject = this.stream;
-        this.video.setAttribute('playsinline', true); // Penting untuk kompabilitas iOS
+        this.video.setAttribute('playsinline', true);
         await this.video.play();
       }
 
@@ -82,7 +79,6 @@ export class CameraService {
     if (parsedFPS >= 15 && parsedFPS <= 60) {
       this.currentFPS = parsedFPS;
 
-      // Jika kamera sedang aktif, mulai ulang stream untuk menerapkan batasan FPS keras (Hard Limit)
       if (this.isActive() && this.stream) {
         const currentTrack = this.stream.getVideoTracks()[0];
         const currentDeviceId = currentTrack.getSettings().deviceId;

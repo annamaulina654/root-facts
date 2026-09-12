@@ -5,7 +5,6 @@ export class DetectionService {
   constructor() {
     this.model = null;
     this.labels = [];
-    // Sesuaikan path ini dengan lokasi model Anda di folder public
     this.config = {
       modelPath: '/model/model.json',
       metadataPath: '/model/metadata.json',
@@ -14,21 +13,51 @@ export class DetectionService {
     };
   }
 
-  // TODO [Basic] Muat model dan metadata
-  // TODO [Advance] Strategi Backend Adaptive
   async loadModel(onProgress) {
     try {
-      const backend = navigator.gpu ? 'webgpu' : 'webgl';
-      await tf.setBackend(backend);
-      await tf.ready();
+      let selectedBackend = 'webgl';
+
+      if ('gpu' in navigator) {
+        try {
+          console.log('WebGPU tersedia, mencoba WebGPU...');
+
+          await tf.setBackend('webgpu');
+          await tf.ready();
+
+          if (tf.getBackend() === 'webgpu') {
+            selectedBackend = 'webgpu';
+            console.log('TensorFlow.js menggunakan WebGPU');
+          }
+        } catch (webgpuError) {
+          console.warn(
+            'WebGPU gagal digunakan, melakukan fallback ke WebGL...',
+            webgpuError
+          );
+
+          await tf.setBackend('webgl');
+          await tf.ready();
+
+          selectedBackend = 'webgl';
+          console.log('TensorFlow.js menggunakan WebGL');
+        }
+      } else {
+        console.log('WebGPU tidak tersedia, menggunakan WebGL...');
+
+        await tf.setBackend('webgl');
+        await tf.ready();
+
+        selectedBackend = 'webgl';
+      }
 
       const metadataResponse = await fetch(this.config.metadataPath);
-      if (!metadataResponse.ok) throw new Error('Metadata tidak ditemukan');
+
+      if (!metadataResponse.ok) {
+        throw new Error('Metadata tidak ditemukan');
+      }
+
       const metadata = await metadataResponse.json();
       this.labels = metadata.labels;
 
-      // Pastikan path model.json sudah benar mengarah ke public/model/model.json
-      // Ganti tf.loadGraphModel menjadi tf.loadLayersModel
       this.model = await tf.loadLayersModel(this.config.modelPath, {
         onProgress: (fraction) => {
           if (onProgress) {
@@ -41,18 +70,22 @@ export class DetectionService {
         }
       });
 
+      console.log(`Model berhasil dimuat menggunakan ${selectedBackend}`);
+
       return {
         success: true,
-        backend: tf.getBackend(),
+        backend: selectedBackend,
         labels: this.labels
       };
     } catch (error) {
       console.error('Gagal memuat model:', error);
-      throw new Error(`Gagal memuat model: ${error.message}. Periksa kembali isi file model.json di folder public.`);
+
+      throw new Error(
+        `Gagal memuat model: ${error.message}. Periksa kembali isi file model.json di folder public.`
+      );
     }
   }
 
-  // TODO [Basic] Lakukan prediksi
   async predict(imageElement) {
     if (!this.model) {
       throw new Error('Model belum dimuat. Panggil loadModel() terlebih dahulu.');
@@ -62,7 +95,6 @@ export class DetectionService {
     let predictions = null;
 
     try {
-      // 1. [Advanced] tf.tidy untuk membersihkan tensor pra-pemrosesan otomatis
       tensor = tf.tidy(() => {
         return tf.browser.fromPixels(imageElement)
           .resizeBilinear(this.config.inputSize)
@@ -70,11 +102,9 @@ export class DetectionService {
           .expandDims(0);
       });
 
-      // 2. Eksekusi model
       predictions = this.model.predict(tensor);
       const values = await predictions.data();
 
-      // 3. Ekstrak nilai tertinggi (confidence)
       const maxIndex = values.indexOf(Math.max(...values));
       const confidenceScore = values[maxIndex];
       const detectedClass = this.labels[maxIndex];
@@ -90,13 +120,11 @@ export class DetectionService {
       console.error('Kesalahan prediksi:', error);
       throw new Error(`Prediksi gagal: ${error.message}`);
     } finally {
-      // 4. [Advanced] Dispose manual untuk tensor utama guna mencegah Memory Leak
       if (tensor) tensor.dispose();
       if (predictions) predictions.dispose();
     }
   }
 
-  // TODO [Basic] Periksa apakah model sudah dimuat
   isLoaded() {
     return this.model !== null && this.labels.length > 0;
   }

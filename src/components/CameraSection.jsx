@@ -17,7 +17,6 @@ function CameraSection({
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
-  // Menerapkan fungsi loadCameras dari referensi
   useEffect(() => {
     const loadCameras = async () => {
       if (services.camera) {
@@ -35,7 +34,6 @@ function CameraSection({
     loadCameras();
   }, [services.camera]);
 
-  // Menambahkan dependency array yang sebelumnya hilang di kode pertama
   useEffect(() => {
     if (services.camera) {
       if (videoRef.current && !services.camera.video) {
@@ -56,7 +54,6 @@ function CameraSection({
   const handleCameraChange = (newCameraType) => {
     setCameraType(newCameraType);
     if (services.camera && services.camera.isActive()) {
-      // Menambahkan argumen newCameraType ke startCamera sesuai referensi
       services.camera.startCamera(newCameraType);
     }
   };
@@ -119,10 +116,7 @@ function CameraSection({
             onClick={() => onToggleCamera(cameraType)}
             disabled={buttonDisabled}
             aria-label={buttonText}
-            // 1. Baris "style={{ opacity: ... }}" sudah DIHAPUS agar tidak pernah transparan
           >
-            {/* 2. Ikon ScanLine HANYA muncul saat model sudah siap dan kamera belum menyala.
-                   Saat kamera aktif (enable) atau saat loading, tombol HANYA berwarna hijau kosong */}
             {!buttonDisabled && !isRunning && (
               <ScanLine size={24} />
             )}
@@ -138,7 +132,6 @@ function CameraSection({
               onChange={(e) => handleCameraChange(e.target.value)}
               disabled={isRunning || cameraList.length === 0}
             >
-              {/* Render daftar kamera dinamis seperti pada kode kedua */}
               {cameraList.length === 0 ? (
                 <option value="">Memuat kamera...</option>
               ) : (

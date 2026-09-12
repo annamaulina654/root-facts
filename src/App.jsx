@@ -10,7 +10,6 @@ import { RootFactsService } from './services/RootFactsService';
 function App() {
   const { state, actions } = useAppState();
 
-  // Referensi yang diperbaiki dan dilengkapi
   const detectionCleanupRef = useRef(null);
   const isRunningRef = useRef(false);
   const targetClassRef = useRef(null);
@@ -20,7 +19,6 @@ function App() {
 
   const [currentTone, setCurrentTone] = useState('normal');
 
-  // 1. Inisialisasi Layanan
   useEffect(() => {
     let isMounted = true;
 
@@ -86,7 +84,6 @@ function App() {
     };
   }, []);
 
-  // 2. Pembersihan Saat Komponen Ditutup
   useEffect(() => {
     return () => {
       if (detectionCleanupRef.current) {
@@ -96,12 +93,8 @@ function App() {
     };
   }, [state.services.camera]);
 
-  // 3. Fungsi Looping Deteksi (Dengan Stabilisator 3 Detik & 30 Frame)
-  // 3. Fungsi Looping Deteksi (Keseimbangan Kecepatan & Akurasi)
-  // Helper untuk membuat jeda (Sama seperti createDelay di referensi Anda)
   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  // 1. FUNGSI LOOP DETEKSI YANG BARU
   const startDetectionLoop = useCallback(async () => {
     if (!isRunningRef.current || !state.services.detector || !state.services.camera.video) return;
 
@@ -109,7 +102,6 @@ function App() {
       if (state.services.camera.isReady()) {
         const result = await state.services.detector.predict(state.services.camera.video);
 
-        // Syarat: Skor 80% dan stabil selama 5 frame (sangat responsif)
         if (result && result.className && result.score > 0.80) {
           if (targetClassRef.current === result.className) {
             consecutiveFramesRef.current += 1;
@@ -119,38 +111,31 @@ function App() {
           }
 
           if (consecutiveFramesRef.current >= 5) {
-            // 1. Hentikan deteksi SEKARANG JUGA
             isRunningRef.current = false;
             if (detectionCleanupRef.current) {
               cancelAnimationFrame(detectionCleanupRef.current);
             }
 
-            // 2. Matikan hardware kamera dan ubah tombol UI
             state.services.camera.stopCamera();
             actions.setRunning(false);
             actions.setModelStatus('Siap');
 
-            // 3. TAHAN UI di status "Mencari..." selama 1.5 detik agar terlihat profesional
             actions.setAppState('analyzing');
             await delay(1500);
 
-            // 4. Setelah jeda selesai, tampilkan hasil sayurannya
             actions.setDetectionResult(result);
             actions.setAppState('result');
 
-            // 5. Mulai hasilkan fakta AI
             if (state.services.generator.isReady()) {
               actions.setFunFactData(null);
-              // Jeda sedikit sebelum AI bekerja
               await delay(500);
               const factText = await state.services.generator.generateFacts(result.className);
               actions.setFunFactData(factText);
             }
 
-            // Bersihkan memori
             targetClassRef.current = null;
             consecutiveFramesRef.current = 0;
-            return; // Loop selesai
+            return;
           }
         } else {
           if (consecutiveFramesRef.current > 0) consecutiveFramesRef.current -= 1;
@@ -166,7 +151,6 @@ function App() {
   }, [state.services, actions]);
 
 
-  // 2. FUNGSI TOGGLE KAMERA YANG BARU
   const handleToggleCamera = useCallback(async (deviceId) => {
     if (isRunningRef.current) {
       isRunningRef.current = false;
@@ -180,20 +164,16 @@ function App() {
         targetClassRef.current = null;
         consecutiveFramesRef.current = 0;
 
-        // 1. Ubah UI ke "Mencari..." segera setelah ditekan
         actions.setAppState('analyzing');
 
-        // 2. Nyalakan perangkat kamera
         await state.services.camera?.startCamera(deviceId);
 
         isRunningRef.current = true;
         actions.setRunning(true);
         actions.setModelStatus('Aktif');
 
-        // 3. JEDA PEMANASAN 1.5 DETIK (Agar Anda sempat mengarahkan kamera ke sayuran)
         await delay(1500);
 
-        // 4. Baru mulai mendeteksi
         startDetectionLoop();
       } catch (err) {
         actions.setError(`Gagal mengakses kamera: ${  err.message}`);
@@ -201,15 +181,13 @@ function App() {
     }
   }, [state.services, actions, startDetectionLoop]);
 
-  // 5. Fungsi Ubah Nada Fakta
   const handleToneChange = useCallback((newTone) => {
     setCurrentTone(newTone);
     if (state.services.generator) {
-      state.services.generator.setTone(newTone); // <-- Pastikan ini aktif
+      state.services.generator.setTone(newTone);
     }
   }, [state.services.generator]);
 
-  // 6. Fungsi Salin Fakta
   const handleCopyFact = useCallback(async () => {
     const factText = state.funFactData;
     if (!factText || factText === 'error') return;

@@ -8,12 +8,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
-        // KUNCI ADVANCED 1: Masukkan ekstensi .json dan .bin agar model AI ikut di-cache
         globPatterns: [
           '**/*.{js,css,html,ico,png,svg,json,bin}'
         ],
-        // KUNCI ADVANCED 2: Naikkan batas ukuran file menjadi 50MB
-        // agar file weights.bin yang besar tidak ditolak oleh Service Worker
         maximumFileSizeToCacheInBytes: 50 * 1024 * 1024,
         skipWaiting: true,
         clientsClaim: true
@@ -41,11 +38,9 @@ export default defineConfig({
             purpose: 'any maskable'
           }
         ]
-        // Anda bisa menambahkan array screenshots di sini nanti jika diperlukan
       }
     })
   ],
-  // Pemecahan modul (Chunking) sangat disarankan agar loading awal aplikasi lebih ringan
   build: {
     target: 'esnext',
     rollupOptions: {

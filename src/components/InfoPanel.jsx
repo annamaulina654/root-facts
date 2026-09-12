@@ -57,7 +57,6 @@ function InfoPanel({ appState, detectionResult, funFactData, error, onCopyFact }
             fontSize: '0.875rem',
             color: '#92400e'
           }}>
-            {/* Teks disesuaikan dengan gambar referensi */}
             Tidak dapat menghasilkan fakta menarik saat ini.
           </div>
         );

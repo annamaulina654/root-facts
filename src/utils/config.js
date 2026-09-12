@@ -9,7 +9,7 @@ export const TONE_CONFIG = {
   availableTones: [
     { value: 'normal', label: 'Normal' },
     { value: 'funny', label: 'Lucu' },
-    { value: 'professional', label: 'Profesional' },
+    { value: 'historical', label: 'Sejarah' },
     { value: 'casual', label: 'Santai' }
   ],
   defaultTone: 'normal'
